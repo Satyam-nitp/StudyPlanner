@@ -1,14 +1,16 @@
-// routes/auth.js
+// backend/api/auth.js
 const express = require("express");
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "satyam";
+const app = express();
+app.use(express.json());  // Make sure body parsing is set up
+
+const JWT_SECRET = "satyam";
 
 // Signup
-router.post("/signup", async (req, res) => {
+app.post("/signup", async (req, res) => {
   try {
     const { name, email, password } = req.body;
     if (!name || !email || !password) {
@@ -29,7 +31,7 @@ router.post("/signup", async (req, res) => {
 });
 
 // Login
-router.post("/login", async (req, res) => {
+app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -50,4 +52,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-module.exports = router;
+// Export the express app as a serverless function
+module.exports = (req, res) => {
+  app(req, res);  // Handle the request and response
+};
