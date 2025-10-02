@@ -10,6 +10,10 @@
     {
       "src": "/api/subjects",
       "dest": "backend/api/subjects.js"
+    },
+    {
+      "src": "/api/auth",
+      "dest": "backend/api/auth.js"
     }
   ]
 }

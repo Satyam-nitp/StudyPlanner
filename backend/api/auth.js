@@ -1,20 +1,15 @@
-// backend/api/auth.js
-const express = require("express");
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-const app = express();
-app.use(express.json());  // Make sure body parsing is set up
-
-const JWT_SECRET = "satyam";
+const JWT_SECRET = "satyam";  // You may want to set this as an environment variable
 
 // Signup
-app.post("/signup", async (req, res) => {
+async function signup(req, res) {
   try {
     const { name, email, password } = req.body;
     if (!name || !email || !password) {
-      return res.status(400).json({ error: "Name, email and password are required" });
+      return res.status(400).json({ error: "Name, email, and password are required" });
     }
 
     const existing = await User.findOne({ email });
@@ -28,10 +23,10 @@ app.post("/signup", async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Server error" });
   }
-});
+}
 
 // Login
-app.post("/login", async (req, res) => {
+async function login(req, res) {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -50,9 +45,18 @@ app.post("/login", async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Server error" });
   }
-});
+}
 
-// Export the express app as a serverless function
-module.exports = (req, res) => {
-  app(req, res);  // Handle the request and response
+// Vercel serverless function handler
+module.exports = async (req, res) => {
+  if (req.method === "POST") {
+    if (req.url === "/api/auth/signup") {
+      return signup(req, res);
+    }
+    if (req.url === "/api/auth/login") {
+      return login(req, res);
+    }
+  }
+
+  res.status(404).json({ error: "Route not found" });
 };

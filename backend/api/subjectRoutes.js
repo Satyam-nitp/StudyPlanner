@@ -1,35 +1,17 @@
-// backend/api/subjects.js
-
-const express = require("express");
-const router = express.Router();
 const Subject = require("../models/Subject");
 const { auth } = require("../middleware/auth");  // Adjust path based on your folder structure
 
-// Protect all routes below
-router.use(auth);
-
-// Get all subjects (for current user)
-router.get("/subjects", async (req, res) => {
+// Helper to handle route logic
+async function getAllSubjects(req, res) {
   try {
     const subjects = await Subject.find({ user: req.userId });
     res.json(subjects);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch subjects" });
   }
-});
+}
 
-// Also support GET / (for clients calling /api/subjects)
-router.get("/", async (req, res) => {
-  try {
-    const subjects = await Subject.find({ user: req.userId });
-    res.json(subjects);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch subjects" });
-  }
-});
-
-// Toggle lecture status
-router.patch("/:subjectId/chapters/:chapterId/lectures/:lectureId", async (req, res) => {
+async function toggleLectureStatus(req, res) {
   try {
     const { subjectId, chapterId, lectureId } = req.params;
     const subject = await Subject.findOne({ _id: subjectId, user: req.userId });
@@ -48,10 +30,9 @@ router.patch("/:subjectId/chapters/:chapterId/lectures/:lectureId", async (req, 
     console.error(err);
     res.status(500).json({ error: "Server error" });
   }
-});
+}
 
-// Create subject for current user
-router.post("/", async (req, res) => {
+async function createSubject(req, res) {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: "Name is required" });
@@ -61,10 +42,9 @@ router.post("/", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: "Failed to create subject" });
   }
-});
+}
 
-// Add chapter to a user's subject
-router.post("/:subjectId/chapters", async (req, res) => {
+async function addChapter(req, res) {
   try {
     const { name } = req.body;
     const subject = await Subject.findOne({ _id: req.params.subjectId, user: req.userId });
@@ -76,10 +56,9 @@ router.post("/:subjectId/chapters", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: "Failed to add chapter" });
   }
-});
+}
 
-// Bulk add lectures to a user's subject chapter
-router.post("/:subjectId/chapters/:chapterId/lectures/bulk", async (req, res) => {
+async function bulkAddLectures(req, res) {
   const { subjectId, chapterId } = req.params;
   const { lectures } = req.body;
 
@@ -105,11 +84,38 @@ router.post("/:subjectId/chapters/:chapterId/lectures/bulk", async (req, res) =>
     console.error(err);
     res.status(500).json({ error: "Server error" });
   }
-});
+}
 
-// Other routes like scheduling, deleting, etc...
+// Vercel Serverless Function Handler
+module.exports = async (req, res) => {
+  // Authentication middleware
+  await auth(req, res);
 
-// Export the express app as a serverless function
-module.exports = (req, res) => {
-  router(req, res);
+  // Route Handling
+  if (req.method === "GET") {
+    if (req.url === "/api/subjects" || req.url === "/api/subjects/") {
+      return getAllSubjects(req, res);
+    }
+  }
+
+  if (req.method === "POST") {
+    if (req.url === "/api/subjects") {
+      return createSubject(req, res);
+    }
+    if (req.url.match(/^\/api\/subjects\/[^/]+\/chapters$/)) {
+      return addChapter(req, res);
+    }
+    if (req.url.match(/^\/api\/subjects\/[^/]+\/chapters\/[^/]+\/lectures\/bulk$/)) {
+      return bulkAddLectures(req, res);
+    }
+  }
+
+  if (req.method === "PATCH") {
+    if (req.url.match(/^\/api\/subjects\/[^/]+\/chapters\/[^/]+\/lectures\/[^/]+$/)) {
+      return toggleLectureStatus(req, res);
+    }
+  }
+
+  // If route does not match any of the above, return 404
+  res.status(404).json({ error: "Route not found" });
 };
